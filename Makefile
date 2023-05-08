@@ -1,7 +1,8 @@
 MKFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
 ROOT_DIR := $(patsubst %/,%,$(dir $(MKFILE_PATH)))
-
-GPP:= /usr/bin/g++
+ROCM_DIR := /opt/rocm/
+HIPCC := $(ROCM_DIR)/bin/hipcc
+GPP:= g++
 ifeq ($(CUDA_HOME),)
 	CUDA_HOME:= $(shell which nvcc | rev | cut -d'/' -f3- | rev)
 endif
@@ -113,12 +114,12 @@ cpuonly: $(BUILD_DIR) env
 
 HIP_INCLUDE := -I $(ROOT_DIR)/csrc -I $(ROOT_DIR)/include 
 # -I /opt/rocm-5.3.0/hipcub/include
-HIP_LIB := -L/opt/rocm-5.3.0/lib -L/opt/rocm-5.3.0/llvm/bin/../lib/clang/15.0.0/lib/linux -L/usr/lib/gcc/x86_64-linux-gnu/11 -L/usr/lib/gcc/x86_64-linux-gnu/11/../../../../lib64 -L/lib/x86_64-linux-gnu -L/lib/../lib64 -L/usr/lib/x86_64-linux-gnu -L/usr/lib/../lib64 -L/lib -L/usr/lib -lgcc_s -lgcc -lpthread -lm -lrt -lamdhip64 -lhipblas -lhipsparse -lclang_rt.builtins-x86_64 -lstdc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc
+HIP_LIB := -L$(ROCM_DIR)/lib -L$(ROCM_DIR)/llvm/bin/../lib/clang/`ls $(ROCM_DIR)/llvm/bin/../lib/clang/ | sort -n | tail -1`/lib/linux -L/usr/lib/gcc/x86_64-linux-gnu/11 -L/usr/lib/gcc/x86_64-linux-gnu/11/../../../../lib64 -L/lib/x86_64-linux-gnu -L/lib/../lib64 -L/usr/lib/x86_64-linux-gnu -L/usr/lib/../lib64 -L/lib -L/usr/lib -lgcc_s -lgcc -lpthread -lm -lrt -lamdhip64 -lhipblas -lhipsparse -lclang_rt.builtins-x86_64 -lstdc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc
 
 hip: $(BUILD_DIR)
-	/usr/bin/hipcc -std=c++14 -c -fPIC --amdgpu-target=gfx1030 $(HIP_INCLUDE) -o $(BUILD_DIR)/ops.o -D NO_CUBLASLT $(CSRC)/ops.cu
-	/usr/bin/hipcc -std=c++14 -c -fPIC --amdgpu-target=gfx1030 $(HIP_INCLUDE) -o $(BUILD_DIR)/kernels.o -D NO_CUBLASLT $(CSRC)/kernels.cu
-	# /usr/bin/hipcc -fPIC -static $(BUILD_DIR)/ops.o $(BUILD_DIR)/kernels.o -o $(BUILD_DIR)/link.so 
+	$(HIPCC) -std=c++14 -c -fPIC --amdgpu-target=`rocminfo | grep -oE "gfx.*" | grep -v gfx000 | sort -u -t 'x' -k 2n | tail -1` $(HIP_INCLUDE) -o $(BUILD_DIR)/ops.o -D NO_CUBLASLT $(CSRC)/ops.cu
+	$(HIPCC) -std=c++14 -c -fPIC --amdgpu-target=`rocminfo | grep -oE "gfx.*" | grep -v gfx000 | sort -u -t 'x' -k 2n | tail -1` $(HIP_INCLUDE) -o $(BUILD_DIR)/kernels.o -D NO_CUBLASLT $(CSRC)/kernels.cu
+	# $(HIPCC) -fPIC -static $(BUILD_DIR)/ops.o $(BUILD_DIR)/kernels.o -o $(BUILD_DIR)/link.so 
 	$(GPP) -std=c++14 -D__HIP_PLATFORM_AMD__ -DBUILD_CUDA -shared -fPIC -I /opt/rocm/include $(HIP_INCLUDE) $(BUILD_DIR)/ops.o $(BUILD_DIR)/kernels.o $(FILES_CPP) $(HIP_LIB) -o ./bitsandbytes/libbitsandbytes_hip_nocublaslt.so 
 
 env:

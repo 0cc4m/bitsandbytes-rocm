@@ -1,3 +1,36 @@
+# bitsandbytes-rocm
+
+Credits/History:
+- Original library [TimDettmers/bitsandbytes](https://github.com/TimDettmers/bitsandbytes) - CUDA-only
+- [broncotc/bitsandbytes-rocm](https://github.com/broncotc/bitsandbytes-rocm) original fork to add ROCm support
+- [0cc4m/bitsandbytes-rocm](https://github.com/0cc4m/bitsandbytes-rocm) update of broncotc's fork
+- [mrq/bitsandbytes-rocm](https://git.ecker.tech/mrq/bitsandbytes-rocm) update of 0cc4m's fork to add Makefile and instructions
+- [deftdawg/bitsandbytes-rocm](https://github.com/deftdawg/bitsandbytes-rocm) update mrq's fork with changes to README, tweaks to auto detect card using ROCm tools, change to make compiler ROCm version agnostic
+
+The library was tested inside the [Docker ROCm/PyTorch:latest](https://hub.docker.com/r/rocm/pytorch) container image - Ubuntu 20.04/ROCm 5.0.0/Python3.8:
+```sh
+docker run --net=host -it --device=/dev/kfd --device=/dev/dri rocm/pytorch:latest # NOTE: /dev/kfd and /dev/dri must be passed into Docker for ROCm to work
+```
+
+## Pre-Requisites
+
+* An AMD GPU capable of supporting ROCm and an appropriate `amdgpu` driver
+
+* Assumes your ROCm tools are installed in `/opt/rocm/` and `rocminfo` is in your path (often found in `/opt/rocm/bin/`), if not edit the `Makefile` to match your distro and/or update your `PATH` before running.
+
+## Compiling
+
+```sh
+# activate your VENV, if using this within a VENV
+git clone https://github.com/deftdawg/bitsandbytes-rocm
+export CUDA_VERSION=$(rocminfo | grep -oE "gfx.*" | grep -v gfx000 | sort -u -t 'x' -k 2n | tail -1) # Use ROCm tools to auto detect card
+make hip
+python setup.py install
+python3 -m bitsandbytes # to validate it works
+```
+
+---
+
 # bitsandbytes
 
 The bitsandbytes is a lightweight wrapper around CUDA custom functions, in particular 8-bit optimizers, matrix multiplication (LLM.int8()), and quantization functions.
